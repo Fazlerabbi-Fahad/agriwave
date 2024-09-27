@@ -70,28 +70,20 @@ export default function FieldData() {
   });
 
   const handleCreate = (data) => {
-    const existedCountry = countries.find(
-      (country) => country.id === parseInt(data.country)
-    );
-
-    if (existedCountry) {
-      return toast.error("Country existed");
-    } else {
-      fetch("https://agriwaveback.vercel.app/fielddata", {
-        method: "POST",
-        headers: {
-          "content-type": "application/json",
-        },
-        body: JSON.stringify(data),
+    fetch("https://agriwaveback.vercel.app/fielddata", {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+      },
+      body: JSON.stringify(data),
+    })
+      .then((res) => res.json())
+      .then((data) => {
+        if (data.acknowledged) {
+          toast.success("Data Added");
+        }
       })
-        .then((res) => res.json())
-        .then((data) => {
-          if (data.acknowledged) {
-            toast.success("Data Added");
-          }
-        })
-        .catch((error) => {});
-    }
+      .catch((error) => {});
   };
 
   return (
