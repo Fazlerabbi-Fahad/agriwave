@@ -12,8 +12,8 @@ export default function Report() {
   const [zoom, setZoom] = useState(10);
   const [farm, setFarm] = useState("");
   const [location, setLocation] = useState(null);
+  const [con, setCon] = useState(null);
 
-  // Initial location state, fallback to default location if not available
   const defaultLocation = { latitude: 37.7749, longitude: -122.4194 };
 
   const handleLocationClick = () => {
@@ -31,7 +31,6 @@ export default function Report() {
   };
 
   const error = () => {
-    // toast.error("Unable to retrieve your location, using default location.");
     setLocation(defaultLocation);
   };
 
@@ -39,87 +38,45 @@ export default function Report() {
     setZoom(parseInt(event.target.value, 10));
   };
 
-  const handleChange = (selectedOption) => {
+  const handleChangeCountry = (selectedOption) => {
+    const cont = countries.find((item) => item.id == selectedOption.value);
+
+    setCountry(cont);
+    console.log(cont);
+
     if (selectedOption) {
-      setSelectedContinentId(selectedOption.value);
+      const fetchFarmData = async (countryId) => {
+        try {
+          const response = await fetch(
+            `https://agriwaveback.vercel.app/fielddata/${selectedOption.value}`
+          );
+          if (!response.ok) {
+            throw new Error("Error fetching data");
+          }
+          const result = await response.json();
+          console.log(result);
+
+          setFarm(result);
+        } catch (error) {
+          console.error("Error fetching farm data:", error);
+        }
+      };
+
+      fetchFarmData(country.id);
+    } else {
+      const data = countries.find((country) => country.id == con?.id);
+      setCountry(data);
     }
   };
 
-  const handleChangeCountry = (selectedOption) => {
-    const data = countries.find(
-      (country) => country.id == selectedOption.value
-    );
-    setCountry(data);
-  };
-
+  // Set location on mount
   useEffect(() => {
     handleLocationClick();
   }, []);
 
+  // Fetch continents
   useEffect(() => {
-    const fetchData = async () => {
-      try {
-        const response = await fetch(
-          "https://agriwaveback.vercel.app/countries/"
-        );
-        if (!response.ok) {
-          throw new Error("Error fetching data");
-        }
-        const result = await response.json();
-        setCountries(result);
-      } catch (error) {
-        // Handle error
-      }
-    };
-
-    fetchData();
-  }, []);
-
-  useEffect(() => {
-    if (country && country.id) {
-      const fetchData = async () => {
-        try {
-          const response = await fetch(
-            `https://agriwaveback.vercel.app/fielddata/${country.id}`
-          );
-          if (!response.ok) {
-            throw new Error("Error fetching data");
-          }
-          const result = await response.json();
-          setFarm(result);
-          console.log(result);
-        } catch (error) {
-          // Handle error
-          console.error("Error fetching country data:", error);
-        }
-      };
-      fetchData();
-    }
-  }, [country]);
-
-  useEffect(() => {
-    const fetchData = async () => {
-      if (selectedContinentId) {
-        try {
-          const response = await fetch(
-            `https://agriwaveback.vercel.app/countries/${selectedContinentId}`
-          );
-          if (!response.ok) {
-            throw new Error("Error fetching data");
-          }
-          const result = await response.json();
-          setCountries(result);
-        } catch (error) {
-          // Handle error
-        }
-      }
-    };
-
-    fetchData();
-  }, [selectedContinentId]);
-
-  useEffect(() => {
-    const fetchData = async () => {
+    const fetchContinents = async () => {
       try {
         const response = await fetch(
           "https://agriwaveback.vercel.app/continent"
@@ -130,12 +87,91 @@ export default function Report() {
         const result = await response.json();
         setContinent(result);
       } catch (error) {
-        // Handle error
+        console.error("Error fetching continent data:", error);
       }
     };
 
-    fetchData();
+    fetchContinents();
   }, []);
+
+  // Fetch countries and find the country based on location
+  useEffect(() => {
+    const fetchCountries = async () => {
+      try {
+        const response = await fetch(
+          "https://agriwaveback.vercel.app/countries/"
+        );
+        if (!response.ok) {
+          throw new Error("Error fetching data");
+        }
+        const result = await response.json();
+        setCountries(result);
+
+        // Find the country based on location coordinates
+        const foundCountry = result?.find(
+          (country) =>
+            Math.ceil(country.latitude) === Math.ceil(location.latitude) &&
+            Math.ceil(country.longitude) === Math.ceil(location.longitude)
+        );
+
+        if (foundCountry) {
+          setCon(foundCountry);
+          setSelectedContinentId(foundCountry.continentId);
+          setCountry(foundCountry);
+        } else {
+          console.log("No matching country found");
+        }
+      } catch (error) {
+        console.error("Error fetching countries:", error);
+      }
+    };
+
+    fetchCountries();
+  }, [location]);
+
+  // Fetch farm data for the selected country or con
+  useEffect(() => {
+    if (con) {
+      const fetchFarmData = async (countryId) => {
+        try {
+          const response = await fetch(
+            `https://agriwaveback.vercel.app/fielddata/${countryId}`
+          );
+          if (!response.ok) {
+            throw new Error("Error fetching data");
+          }
+          const result = await response.json();
+          setFarm(result);
+        } catch (error) {
+          console.error("Error fetching farm data:", error);
+        }
+      };
+
+      fetchFarmData(con?.id);
+    }
+  }, [con]);
+
+  const handleChange = (selectedOption) => {
+    if (selectedOption) {
+      const fetchCountries = async () => {
+        try {
+          const response = await fetch(
+            `https://agriwaveback.vercel.app/countries/${selectedOption.value}`
+          );
+          if (!response.ok) {
+            throw new Error("Error fetching data");
+          }
+          const result = await response.json();
+          setCountries(result);
+          setSelectedContinentId(result.continentId);
+        } catch (error) {
+          console.error("Error fetching countries:", error);
+        }
+      };
+
+      fetchCountries();
+    }
+  };
 
   return (
     <div>
@@ -147,9 +183,10 @@ export default function Report() {
             </label>
             <select
               className="select select-secondary w-full rounded-sm"
+              value={selectedContinentId}
               onChange={(e) => handleChange(e.target)}
             >
-              <option disabled selected>
+              <option disabled value="">
                 Pick your continent
               </option>
               {continent?.map((con) => (
@@ -167,9 +204,10 @@ export default function Report() {
               </label>
               <select
                 className="select select-secondary w-full rounded-sm"
+                value={country?.id}
                 onChange={(e) => handleChangeCountry(e.target)}
               >
-                <option disabled selected>
+                <option disabled value="">
                   Pick your country
                 </option>
                 {countries?.map((country) => (
@@ -190,7 +228,7 @@ export default function Report() {
             className="select select-secondary w-full rounded-sm"
             onChange={handleZoom}
           >
-            <option disabled selected>
+            <option disabled value="">
               Zoom Map
             </option>
             <option value={0}>0</option>
@@ -213,23 +251,23 @@ export default function Report() {
           {farm[0] ? (
             <div className="max-w-screen-lg mx-auto">
               <ul>
-                <li className="mt-4 ">
+                <li className="mt-4">
                   <span className="text-warning mr-2 mt-2">Crop:</span>
                   {farm[0]?.crop}
                 </li>
-                <li className="mt-4 ">
+                <li className="mt-4">
                   <span className="text-warning mr-2 mt-2">Humidity:</span>
                   {farm[0]?.humidity}
                 </li>
-                <li className="mt-4 ">
+                <li className="mt-4">
                   <span className="text-warning mr-2 mt-2">Land:</span>
                   {farm[0]?.land}
                 </li>
-                <li className="mt-4 ">
+                <li className="mt-4">
                   <span className="text-warning mr-2 mt-2">Soil:</span>
                   {farm[0]?.soil}
                 </li>
-                <li className="mt-4 ">
+                <li className="mt-4">
                   <span className="text-warning mr-2 mt-2">Temperature:</span>
                   {farm[0]?.temperature}
                 </li>

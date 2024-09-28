@@ -32,8 +32,6 @@ export default function Login() {
   }, []);
 
   const handleLogin = (data) => {
-    console.log(data, users);
-
     if (users.length < 0) {
       toast.error("Users data is still loading. Please wait.");
       return;
