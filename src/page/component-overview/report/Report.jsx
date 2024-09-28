@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from "react";
 import GoogleMapReact from "google-map-react";
+import toast from "react-hot-toast";
 
 const AnyReactComponent = ({ text }) => <div>{text}</div>;
 
@@ -10,6 +11,29 @@ export default function Report() {
   const [country, setCountry] = useState(null);
   const [zoom, setZoom] = useState(10);
   const [farm, setFarm] = useState("");
+  const [location, setLocation] = useState(null);
+
+  // Initial location state, fallback to default location if not available
+  const defaultLocation = { latitude: 37.7749, longitude: -122.4194 };
+
+  const handleLocationClick = () => {
+    if (navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition(success, error);
+    } else {
+      toast.error("Geolocation not supported");
+    }
+  };
+
+  const success = (position) => {
+    const latitude = position.coords.latitude;
+    const longitude = position.coords.longitude;
+    setLocation({ latitude, longitude });
+  };
+
+  const error = () => {
+    // toast.error("Unable to retrieve your location, using default location.");
+    setLocation(defaultLocation);
+  };
 
   const handleZoom = (event) => {
     setZoom(parseInt(event.target.value, 10));
@@ -27,6 +51,10 @@ export default function Report() {
     );
     setCountry(data);
   };
+
+  useEffect(() => {
+    handleLocationClick();
+  }, []);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -109,18 +137,6 @@ export default function Report() {
     fetchData();
   }, []);
 
-  const defaultProps = {
-    center: country
-      ? {
-          lat: country.latitude,
-          lng: country.longitude,
-        }
-      : {
-          lat: 23.685,
-          lng: 90.3563,
-        },
-  };
-
   return (
     <div>
       <div className="grid md:grid-cols-2 md:gap-6 max-w-screen-lg mx-auto">
@@ -191,6 +207,7 @@ export default function Report() {
           </select>
         </div>
       </div>
+
       {country && (
         <div>
           {farm[0] ? (
@@ -234,21 +251,30 @@ export default function Report() {
         className="max-w-screen-lg mx-auto"
         style={{ height: "100vh", width: "100%" }}
       >
-        {country && country.latitude && country.longitude ? (
+        {location ? (
           <GoogleMapReact
             bootstrapURLKeys={{
               key: "AIzaSyB2fhQkaC2i03Kov-VNTceVysxC1YOIsxg",
             }}
-            center={{
-              lat: country.latitude,
-              lng: country.longitude,
-            }}
+            center={
+              country && country.latitude && country.longitude
+                ? { lat: country.latitude, lng: country.longitude }
+                : { lat: location.latitude, lng: location.longitude }
+            }
             zoom={zoom}
           >
             <AnyReactComponent
-              lat={country.latitude}
-              lng={country.longitude}
-              text={country.name}
+              lat={
+                country && country.latitude
+                  ? country.latitude
+                  : location.latitude
+              }
+              lng={
+                country && country.longitude
+                  ? country.longitude
+                  : location.longitude
+              }
+              text={country ? country.name : "Your Location"}
             />
           </GoogleMapReact>
         ) : (
